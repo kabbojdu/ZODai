@@ -257,19 +257,25 @@ const useCreativeStudio = (addNotification: (message: string, type?: Notificatio
     setIsLoading(true);
     setError(null);
     try {
-      const promises = Array.from({ length: count }, () => performEdit(prompt, negativePrompt));
-      const results = await Promise.allSettled(promises);
-      const successfulEdits: EditedImage[] = results
-        .filter(r => r.status === 'fulfilled' && r.value?.imageData)
-        .map(r => ({
-          dataUrl: `data:image/png;base64,${(r as PromiseFulfilledResult<any>).value.imageData}`,
-          text: (r as PromiseFulfilledResult<any>).value.text,
-        }));
+      const successfulEdits: EditedImage[] = [];
+      for (let i = 0; i < count; i++) {
+        setLoadingMessage(`Generating variation ${i + 1} of ${count}...`);
+        const result = await performEdit(prompt, negativePrompt);
+        if (result?.imageData) {
+          successfulEdits.push({
+            dataUrl: `data:image/png;base64,${result.imageData}`,
+            text: result.text,
+          });
+        }
+      }
+
       setEditedImages(successfulEdits);
       updateHistory(successfulEdits, prompt, negativePrompt);
+      
       if (successfulEdits.length > 0) {
         addNotification(`${successfulEdits.length} variation(s) generated!`, 'success');
       } else {
+        // This part might be reached if all requests fail gracefully within performEdit
         setError('Could not generate any variations.');
         addNotification('Could not generate any variations.', 'error');
       }
@@ -279,8 +285,9 @@ const useCreativeStudio = (addNotification: (message: string, type?: Notificatio
       addNotification(errorMsg, 'error');
     } finally {
       setIsLoading(false);
+      setLoadingMessage('AI is creating...');
     }
-  }, [originalImage, prompt, negativePrompt, activeTool, maskDataUrl, styleReference, updateHistory, addNotification]);
+  }, [originalImage, prompt, negativePrompt, updateHistory, addNotification]);
   
   const handleMagicToolPlacement = useCallback(async (objectPrompt: string, coords: {x: number, y: number}) => {
     const magicToolRequest = { objectPrompt, coords };
@@ -425,6 +432,7 @@ const useCreativeStudio = (addNotification: (message: string, type?: Notificatio
   };
 
   const handleRedo = () => {
+// Fix: Changed canDo to canRedo
     if (!canRedo) return;
     const newIndex = historyIndex + 1;
     const nextState = history[newIndex];
