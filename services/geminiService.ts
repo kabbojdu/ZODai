@@ -23,8 +23,10 @@ async function callApiProxy(action: string, params: object) {
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || `API request failed with status ${response.status}`);
+      const errorData = await response.json().catch(() => ({ error: `API request failed with status ${response.status}` }));
+      const error = new Error(errorData.error || `API request failed with status ${response.status}`);
+      (error as any).status = response.status;
+      throw error;
     }
     
     return await response.json();
@@ -32,8 +34,8 @@ async function callApiProxy(action: string, params: object) {
   } catch (error) {
     console.error(`Error calling API proxy for action "${action}":`, error);
     if (error instanceof Error) {
-        // Re-throw the error to be caught by the calling hook
-        throw new Error(error.message);
+        // Re-throw the error to be caught by the calling hook, preserving custom properties like 'status'
+        throw error;
     }
     throw new Error('An unknown network error occurred.');
   }

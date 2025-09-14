@@ -68,9 +68,20 @@ export default async function handler(req: Request) {
 
   } catch (error) {
     console.error(`Error in /api/gemini:`, error);
-    const errorMessage = error instanceof Error ? error.message : 'An unknown server error occurred.';
+    const status = (error as any)?.status || 500;
+    let errorMessage = error instanceof Error ? error.message : 'An unknown server error occurred.';
+    
+    // The error message from the GenAI SDK might be a JSON string.
+    // Attempt to parse it to get a cleaner message for the client.
+    try {
+        const parsed = JSON.parse(errorMessage);
+        if(parsed.error && parsed.error.message) {
+            errorMessage = parsed.error.message;
+        }
+    } catch(e) { /* not a JSON string, ignore */ }
+    
     return new Response(JSON.stringify({ error: errorMessage }), {
-      status: 500,
+      status,
       headers: { 'Content-Type': 'application/json' },
     });
   }

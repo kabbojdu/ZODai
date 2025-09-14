@@ -19,6 +19,20 @@ const CREATIVE_VIDEO_MESSAGES = [
     "The digital premiere is almost ready...",
 ];
 
+const getApiErrorMessage = (err: unknown): string => {
+    const errorMsg = err instanceof Error ? err.message : 'An unknown error occurred.';
+    const status = (err as any)?.status;
+
+    if (status === 429 || (typeof errorMsg === 'string' && errorMsg.toLowerCase().includes('quota'))) {
+      return "You've exceeded the free tier limit. Please try again later or upgrade to Pro for unlimited access.";
+    }
+    if (typeof errorMsg === 'string' && errorMsg.includes("billed users")) {
+      return "This feature requires a billed account setup. Please upgrade to Pro.";
+    }
+    return errorMsg;
+};
+
+
 const useCreativeStudio = (addNotification: (message: string, type?: Notification['type']) => void) => {
   // Global State
   const [appMode, setAppMode] = useState<AppMode>('image');
@@ -140,10 +154,7 @@ const useCreativeStudio = (addNotification: (message: string, type?: Notificatio
       handleImageSelect(imageFile);
     } catch (err) {
       console.error('Error generating image:', err);
-      let errorMsg = err instanceof Error ? err.message : 'An unknown error occurred.';
-      if (typeof errorMsg === 'string' && errorMsg.includes("billed users")) {
-        errorMsg = "Image generation requires a billed account setup. This is a premium feature.";
-      }
+      const errorMsg = getApiErrorMessage(err);
       setError(errorMsg);
       addNotification(errorMsg, 'error');
       handleReset();
@@ -216,7 +227,7 @@ const useCreativeStudio = (addNotification: (message: string, type?: Notificatio
 
     } catch (err) {
       console.error('Error editing image:', err);
-      const errorMsg = err instanceof Error ? err.message : 'An unknown error occurred.';
+      const errorMsg = getApiErrorMessage(err);
       setError(errorMsg);
       addNotification(errorMsg, 'error');
     } finally {
@@ -263,7 +274,7 @@ const useCreativeStudio = (addNotification: (message: string, type?: Notificatio
         addNotification('Could not generate any variations.', 'error');
       }
     } catch(err) {
-      const errorMsg = err instanceof Error ? err.message : 'An unknown error occurred.';
+      const errorMsg = getApiErrorMessage(err);
       setError(errorMsg);
       addNotification(errorMsg, 'error');
     } finally {
@@ -300,7 +311,7 @@ const useCreativeStudio = (addNotification: (message: string, type?: Notificatio
             throw new Error(result?.text || "Outpainting failed.");
         }
     } catch (err) {
-        const errorMsg = err instanceof Error ? err.message : 'Error during outpainting.';
+        const errorMsg = getApiErrorMessage(err);
         setError(errorMsg);
         addNotification(errorMsg, 'error');
     } finally {
@@ -351,7 +362,7 @@ const useCreativeStudio = (addNotification: (message: string, type?: Notificatio
         }
     } catch (err) {
       console.error('Error enhancing image to 4K:', err);
-      const errorMsg = err instanceof Error ? err.message : 'An unknown error occurred during enhancement.';
+      const errorMsg = getApiErrorMessage(err);
       setError(errorMsg);
       addNotification(errorMsg, 'error');
     } finally {
@@ -462,7 +473,7 @@ const useCreativeStudio = (addNotification: (message: string, type?: Notificatio
 
         poll();
     } catch(err) {
-        const errorMsg = err instanceof Error ? err.message : 'An unknown error occurred during video generation.';
+        const errorMsg = getApiErrorMessage(err);
         setError(errorMsg);
         setVideoGenerationState({ status: 'error', message: errorMsg });
         addNotification(errorMsg, 'error');
