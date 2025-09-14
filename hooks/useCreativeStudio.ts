@@ -6,7 +6,7 @@ import type {
 } from '../types';
 import { 
     editImageWithGemini, generateImageWithImagen, generateVideoWithVeo, getVideosOperation, MagicToolRequest,
-    enhanceImageTo4k, removeBackground
+    enhanceImageTo4k, removeBackground, downloadVideoFromProxy
 } from '../services/geminiService';
 
 const CREATIVE_VIDEO_MESSAGES = [
@@ -140,7 +140,10 @@ const useCreativeStudio = (addNotification: (message: string, type?: Notificatio
       handleImageSelect(imageFile);
     } catch (err) {
       console.error('Error generating image:', err);
-      const errorMsg = err instanceof Error ? err.message : 'An unknown error occurred.';
+      let errorMsg = err instanceof Error ? err.message : 'An unknown error occurred.';
+      if (typeof errorMsg === 'string' && errorMsg.includes("billed users")) {
+        errorMsg = "Image generation requires a billed account setup. This is a premium feature.";
+      }
       setError(errorMsg);
       addNotification(errorMsg, 'error');
       handleReset();
@@ -439,8 +442,7 @@ const useCreativeStudio = (addNotification: (message: string, type?: Notificatio
             if (operation.done) {
                 const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
                 if (downloadLink) {
-                    const response = await fetch(`${downloadLink}&key=${process.env.API_KEY}`);
-                    const blob = await response.blob();
+                    const blob = await downloadVideoFromProxy(downloadLink);
                     const url = URL.createObjectURL(blob);
                     setVideoUrl(url);
                     setVideoGenerationState({ status: 'done', message: 'Video generated!' });

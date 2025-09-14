@@ -1,3 +1,4 @@
+
 import type { AspectRatio, VideoOperation } from '../types';
 
 interface EditImageResult {
@@ -87,4 +88,32 @@ export const generateVideoWithVeo = async (prompt: string): Promise<VideoOperati
 
 export const getVideosOperation = async (operation: VideoOperation): Promise<VideoOperation> => {
   return callApiProxy('getVideosOperation', { operation });
+};
+
+export const downloadVideoFromProxy = async (downloadLink: string): Promise<Blob> => {
+    try {
+        const response = await fetch('/api/gemini', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'downloadVideo', downloadLink }),
+        });
+
+        if (!response.ok) {
+            try {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `Video download failed with status ${response.status}`);
+            } catch (e) {
+                throw new Error(`Video download failed with status ${response.status}`);
+            }
+        }
+        
+        return await response.blob();
+
+    } catch (error) {
+        console.error(`Error downloading video via proxy:`, error);
+        if (error instanceof Error) {
+            throw new Error(error.message);
+        }
+        throw new Error('An unknown network error occurred while downloading the video.');
+    }
 };

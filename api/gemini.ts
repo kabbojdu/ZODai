@@ -1,3 +1,4 @@
+
 // api/gemini.ts
 // IMPORTANT: This is a server-side file. It will be deployed as a Vercel Edge Function.
 // DO NOT import this file in any frontend component.
@@ -51,6 +52,8 @@ export default async function handler(req: Request) {
       case 'getVideosOperation':
         result = await getVideosOperation(params.operation);
         break;
+      case 'downloadVideo':
+        return await downloadVideo(params.downloadLink);
       default:
         return new Response(JSON.stringify({ error: `Unknown action: ${action}` }), {
           status: 400,
@@ -179,4 +182,42 @@ async function generateVideoWithVeo(prompt: string): Promise<VideoOperation> {
 
 async function getVideosOperation(operation: VideoOperation): Promise<VideoOperation> {
     return await ai.operations.getVideosOperation({ operation: operation as any });
+}
+
+async function downloadVideo(downloadLink: string): Promise<Response> {
+  if (!downloadLink) {
+    return new Response(JSON.stringify({ error: "Download link is missing." }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  try {
+    const videoUrl = `${downloadLink}&key=${process.env.API_KEY}`;
+    const videoResponse = await fetch(videoUrl);
+
+    if (!videoResponse.ok) {
+      const errorText = await videoResponse.text();
+      console.error(`Failed to fetch video from Google. Status: ${videoResponse.status}`, errorText);
+      return new Response(JSON.stringify({ error: `Failed to fetch video from Google. Status: ${videoResponse.status}` }), {
+        status: videoResponse.status,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Stream the video back to the client
+    return new Response(videoResponse.body, {
+      status: 200,
+      headers: {
+        'Content-Type': videoResponse.headers.get('Content-Type') || 'video/mp4',
+        'Content-Length': videoResponse.headers.get('Content-Length') || '',
+      },
+    });
+  } catch (error) {
+    console.error('Error in downloadVideo function:', error);
+    return new Response(JSON.stringify({ error: 'Server error while downloading video.' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
 }
